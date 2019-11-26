@@ -162,7 +162,7 @@ class RunManager():
         df = pd.DataFrame.from_dict(self.run_data, orient='columns')
 
         clear_output(wait=True)
-        display(df)
+        display(df.tail(10))
 
     def _calculate_loss_per_loader(self, loss, data_loader):
         return loss.item() * data_loader.batch_size
