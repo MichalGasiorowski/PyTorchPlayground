@@ -30,6 +30,7 @@ from Network import MyBasicNetworkBN
 from Network import BiggerLeNet
 from Network import VggLikeNet
 
+
 def create_datasets():
 	train_transform = transforms.Compose([
 		transforms.ToTensor()
@@ -165,7 +166,7 @@ def main():
 		, lr=[.001, .005, .01]
 		, batch_size=[1000]
 		, shuffle=[True]
-		, epochs=[5]
+		, epochs=[2]
 		, device=[device]
 		, nw=[2]
 		, conv_out=[[[16, 16], [32, 32]], [[24, 24], [48, 48]]]
@@ -178,7 +179,7 @@ def main():
 	)
 
 	runs_data = {}
-
+	best_models = None
 	experiments = [('LeNet', parametersLeNet), ('BiggerLeNet', parametersBiggerLeNet), ('VggLikeNet', parametersVggLikeNet)]
 
 	for networkName, parameters in experiments.__reversed__():
@@ -204,17 +205,11 @@ def main():
 			network = None
 			#network = networks.get(run.network)().to(device=run.device)
 			if run.network == 'LeNet':
-				network = MyBasicNetworkBN(conv_out=run.conv_out, conv_ks=run.conv_ks,
-									   dropout=run.dropout, lin_out=run.lin_out,
-					 in_size = run.in_size, out_size=run.out_size, use_batch_norm=use_batch_norm).to(device=run.device)
+				network = MyBasicNetworkBN(run, use_batch_norm)
 			if run.network == 'BiggerLeNet':
-				network = BiggerLeNet(conv_out=run.conv_out, conv_ks=run.conv_ks,
-									   dropout=run.dropout, lin_out=run.lin_out,
-					 in_size = run.in_size, out_size=run.out_size, use_batch_norm=use_batch_norm).to(device=run.device)
+				network = BiggerLeNet(run, use_batch_norm)
 			if run.network == 'VggLikeNet':
-				network = VggLikeNet(conv_out=run.conv_out, conv_ks=run.conv_ks,
-									   dropout=run.dropout, lin_out=run.lin_out,
-					 in_size = run.in_size, out_size=run.out_size, use_batch_norm=use_batch_norm).to(device=run.device)
+				network = VggLikeNet(run, use_batch_norm)
 
 			print('network.name: :', networkName, ' chosen')
 			print("network architecture: \n", network)
@@ -248,7 +243,7 @@ def main():
 			best_models_str = "\n".join(
 				["Valid_accuracy:" + str(item[0]) + "\nHyperParameters:\n" + "run:\n" + str(item[1][0]) + "\nNetwork:\n" +
 				 str(item[1][1]) for item in best_models[:10]])
-			print(best_models_str)
+			#print(best_models_str)
 
 			runs_data[networkName] = (best_models, best_models_str)
 			m.save(f'results_{networkName}')
@@ -257,6 +252,22 @@ def main():
 
 
 	return runs_data
+
 if __name__ == '__main__':
-    #main('c:\\Users\\michal\\Google Drive\\Colab Notebooks\\Workspace\\PyTorchPlayground\\')
-    main()
+
+	runs_data = main()
+	print("runs_data:\n", runs_data)
+
+	#self.best_models.append((self.validCorrect / len(self.valid_loader.sampler), (self.run_params, self.network)))
+
+	best_vgg = runs_data['VggLikeNet'][0][1]
+
+	train_set, valid_set, test_set = create_datasets()
+	random_seed = random.seed()
+
+	run = best_vgg[0]
+	pin_memory = (run.device != 'cpu')
+	train_loader, valid_loader, test_loader = get_train_valid_test_loader_for_final_training(
+		train_set, valid_set, test_set, run.batch_size, random_seed, run.shuffle, run.nw, pin_memory)
+
+	best_vgg = VggLikeNet()

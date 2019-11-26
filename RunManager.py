@@ -100,7 +100,7 @@ class RunManager():
         grid = torchvision.utils.make_grid(image, normalize=True, scale_each=True)
         self.tb.add_image('confusion_matrix', grid)
 
-        self.best_models.append((self.validCorrect / len(self.valid_loader.sampler), (self.run_params, str(self.network))))
+        self.best_models.append((self.validCorrect / len(self.valid_loader.sampler), (self.run_params, self.network)))
 
         self.tb.close()
         self.epoch.count = 0

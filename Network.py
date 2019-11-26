@@ -219,22 +219,22 @@ def construct_vgg_conv_layers(conv_input_channels, conv_out, conv_ks, dropout, i
 			in enumerate(zip(conv_input_channels, conv_out, conv_ks)):
 
 		for sub_i in range(group_num):
-			convSequenceArray.append(("conv_" + str(i) + "_" + str(sub_i+1),
+			convSequenceArray.append(("conv_" + str(i) + "_" + str(sub_i),
 									  nn.Conv2d(in_channels=conv_input_channel[sub_i], out_channels=conv_out_channel[sub_i],
 												kernel_size=kernel_size[sub_i])))
-			if batch_normalization:
-				convSequenceArray.append(("batch_norm_" + str(i) + "_" + str(sub_i+1), nn.BatchNorm2d(num_features=conv_out_channel[sub_i])))
-			convSequenceArray.append(("relu_" + str(i) + "_" + str(sub_i+1), nn.ReLU()))
+		if batch_normalization:
+			convSequenceArray.append(("batch_norm_" + str(i) + "_" + str(sub_i), nn.BatchNorm2d(num_features=conv_out_channel[sub_i])))
+		convSequenceArray.append(("relu_" + str(i) + "_" + str(sub_i), nn.ReLU()))
 
-			convSequenceArray.append(("maxpool_" + str(i) + "_" + str(sub_i+1), nn.MaxPool2d(kernel_size=2, stride=2)))
-			if dropout != 0.0:
-				convSequenceArray.append(("drop_" + str(i) + "_" + str(sub_i+1), nn.Dropout2d(p=dropout)))
+		convSequenceArray.append(("maxpool_" + str(i) + "_" + str(sub_i), nn.MaxPool2d(kernel_size=2, stride=2)))
+		if dropout != 0.0:
+			convSequenceArray.append(("drop_" + str(i) + "_" + str(sub_i), nn.Dropout2d(p=dropout)))
 			after_conv_output_shape = conv_output_shape(h_w=after_conv_output_shape, kernel_size=kernel_size[sub_i],
 														stride=1, pad=0, dilation=1)  # conv
 			after_conv_output_shape = conv_output_shape(h_w=after_conv_output_shape, kernel_size=kernel_size[sub_i],
 														stride=1, pad=0, dilation=1)  # conv
-		after_conv_output_shape = conv_output_shape(h_w=after_conv_output_shape, kernel_size=2,
-													stride=2, pad=0, dilation=1)  # maxpool
+			after_conv_output_shape = conv_output_shape(h_w=after_conv_output_shape, kernel_size=2,
+			                                            stride=2, pad=0, dilation=1)  # maxpool
 
 	conv_sequence = nn.Sequential(OrderedDict(convSequenceArray))
 
@@ -259,6 +259,13 @@ def construct_linear_layers(linear_input_sizes, lin_out, dropout, batch_normaliz
 
 
 class MyBasicNetworkBN(nn.Module):
+
+	@staticmethod
+	def construct_net(run, use_batch_norm):
+		return MyBasicNetworkBN(conv_out=run.conv_out, conv_ks=run.conv_ks,
+									   dropout=run.dropout, lin_out=run.lin_out,
+					 in_size = run.in_size, out_size=run.out_size, use_batch_norm=use_batch_norm).to(device=run.device)
+
 	def __init__(self, conv_out=[24, 48], conv_ks=[3, 5], dropout=0.2, lin_out=[400, 120, 60],
 				 in_size = (28, 28), out_size=10, use_batch_norm = True):
 		if len(conv_out) != len(conv_ks):
@@ -303,6 +310,14 @@ class MyBasicNetworkBN(nn.Module):
 
 #Conv-Pool-Conv-Pool with double the filters every stage
 class BiggerLeNet(nn.Module):
+
+	@staticmethod
+	def construct_net(run, use_batch_norm):
+		return BiggerLeNet(conv_out=run.conv_out, conv_ks=run.conv_ks,
+		                        dropout=run.dropout, lin_out=run.lin_out,
+		                        in_size=run.in_size, out_size=run.out_size,
+		                        use_batch_norm=use_batch_norm).to(device=run.device)
+
 	def __init__(self, conv_out=[32, 64, 128], conv_ks=[3, 3, 3], dropout=0.2, lin_out=[400, 120, 60],
 				 in_size = (28, 28), out_size=10, use_batch_norm = True):
 		if len(conv_out) != len(conv_ks):
@@ -346,6 +361,14 @@ class BiggerLeNet(nn.Module):
 
 #Conv-Conv-Pool-Conv-Conv-Pool
 class VggLikeNet(nn.Module):
+
+	@staticmethod
+	def construct_net(run, use_batch_norm):
+		return VggLikeNet(conv_out=run.conv_out, conv_ks=run.conv_ks,
+		                   dropout=run.dropout, lin_out=run.lin_out,
+		                   in_size=run.in_size, out_size=run.out_size,
+		                   use_batch_norm=use_batch_norm).to(device=run.device)
+
 	def __init__(self, conv_out=[[16, 16], [32, 32]], conv_ks=[[3, 3], [3, 3]], dropout=0.2, lin_out=[500],
 				 in_size = (28, 28), out_size=10, use_batch_norm = True):
 		if len(conv_out) != len(conv_ks):
@@ -354,7 +377,14 @@ class VggLikeNet(nn.Module):
 		self.name = 'VggLikeNet'
 
 		self.conv_out = conv_out
-		self.conv_input_channels = [[1] + conv_out[0][:-1]] + conv_out[1:]
+
+		conv_out_np = np.array(conv_out)
+		conv_out_flat = conv_out_np.flatten()
+
+		conv_input_channels_flat = np.concatenate((np.array([1]), conv_out_flat[:-1]))
+		conv_out_np = conv_input_channels_flat.reshape(conv_out_np.shape)
+		self.conv_input_channels = conv_out_np.tolist()
+
 		self.conv_ks = conv_ks
 		self.lin_out = lin_out
 
@@ -363,7 +393,7 @@ class VggLikeNet(nn.Module):
 		self.use_batch_norm = use_batch_norm
 
 		self.convSequence, after_conv_output_shape = construct_vgg_conv_layers(self.conv_input_channels, self.conv_out,
-		                                                                   self.conv_ks, self.dropout, self.in_size, self.use_batch_norm )
+		                                                                   self.conv_ks, self.dropout, self.in_size, self.use_batch_norm)
 		in_features_after_conv = np.prod(after_conv_output_shape) * conv_out[-1][-1]
 		self.linear_input_sizes = [in_features_after_conv] + lin_out[:-1]
 
