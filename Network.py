@@ -229,15 +229,12 @@ def construct_vgg_conv_layers(conv_input_channels, conv_out, conv_ks, dropout, i
 			convSequenceArray.append(("maxpool_" + str(i) + "_" + str(sub_i+1), nn.MaxPool2d(kernel_size=2, stride=2)))
 			if dropout != 0.0:
 				convSequenceArray.append(("drop_" + str(i) + "_" + str(sub_i+1), nn.Dropout2d(p=dropout)))
-
-
-
-		after_conv_output_shape = conv_output_shape(h_w=after_conv_output_shape, kernel_size=kernel_size,
-		                                            stride=1, pad=0, dilation=1)#conv
-		after_conv_output_shape = conv_output_shape(h_w=after_conv_output_shape, kernel_size=kernel_size,
-													stride=1, pad=0, dilation=1)  # conv
+			after_conv_output_shape = conv_output_shape(h_w=after_conv_output_shape, kernel_size=kernel_size[sub_i],
+														stride=1, pad=0, dilation=1)  # conv
+			after_conv_output_shape = conv_output_shape(h_w=after_conv_output_shape, kernel_size=kernel_size[sub_i],
+														stride=1, pad=0, dilation=1)  # conv
 		after_conv_output_shape = conv_output_shape(h_w=after_conv_output_shape, kernel_size=2,
-		                                            stride=2, pad=0, dilation=1)#maxpool
+													stride=2, pad=0, dilation=1)  # maxpool
 
 	conv_sequence = nn.Sequential(OrderedDict(convSequenceArray))
 

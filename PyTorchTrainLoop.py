@@ -181,8 +181,7 @@ def main():
 
 	experiments = [('LeNet', parametersLeNet), ('BiggerLeNet', parametersBiggerLeNet), ('VggLikeNet', parametersVggLikeNet)]
 
-
-	for networkName, parameters in experiments:
+	for networkName, parameters in experiments.__reversed__():
 		m = RunManager()
 		use_batch_norm = True
 		i = 0
