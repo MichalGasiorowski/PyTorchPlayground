@@ -9,13 +9,14 @@
 
 .idea/*
 .data/*
+.runs/*
 
 .DS_Store
 .project
 .settings
 .classpath
 .metadata
-
+__pycache__/*
 
 # Optional npm cache directory
 .npm
@@ -31,3 +32,6 @@ node_modules
 
 # Build files
 dist/
+
+results_*
+best_models*
