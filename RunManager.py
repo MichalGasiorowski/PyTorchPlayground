@@ -27,6 +27,19 @@ import tensorflow as tf
 
 import os
 
+
+class ModelSummary():
+    def __init__(self, valid_accuracy, run_params, network_rpr):
+        self.valid_accuracy = valid_accuracy
+        self.run_params = run_params
+        self.network_rpr = network_rpr
+
+    def __lt__(self, other):
+        return self.valid_accuracy < other.valid_accuracy
+
+    def __str__(self):
+        return 'Valid_accuracy:%f \nRun_params:\n %s \nNetwork_rpr:\n%s' % ( self.valid_accuracy, self.run_params, self.network_rpr)
+
 class Epoch():
     def __init__(self):
         self.count = 0
@@ -64,7 +77,7 @@ class RunManager():
         self.best_test_accuracy = 0
         self.best_models = []
 
-    def begin_run(self, run, network, device, train_loader, valid_loader, test_loader=None, valid_split = 0.1, names=None ):
+    def begin_run(self, run, network, device, train_loader, valid_loader=None, test_loader=None, valid_split = 0.1, names=None ):
         self.run_start_time = time.time()
 
         self.run_params = run
@@ -99,8 +112,11 @@ class RunManager():
 
         grid = torchvision.utils.make_grid(image, normalize=True, scale_each=True)
         self.tb.add_image('confusion_matrix', grid)
-
-        self.best_models.append((self.validCorrect / len(self.valid_loader.sampler), (self.run_params, self.network)))
+        if self.valid_loader != None:
+            #self.best_models.append((self.validCorrect / len(self.valid_loader.sampler), (self.run_params, str(self.network))))
+            self.best_models.append(ModelSummary(self.validCorrect / len(self.valid_loader.sampler), self.run_params, str(self.network)))
+        else:
+            self.best_models.append(ModelSummary(float('nan'), self.run_params, str(self.network)))
 
         self.tb.close()
         self.epoch.count = 0
@@ -123,13 +139,13 @@ class RunManager():
 
         loss = self.epoch.loss / len(self.train_loader.sampler)
         accuracy = self.epoch.num_correct / len(self.train_loader.sampler)
-        self.tb.add_scalar('Loss', loss, self.epoch.count)
-        self.tb.add_scalar('Accuracy', accuracy, self.epoch.count)
+        self.tb.add_scalar('Loss/Train', loss, self.epoch.count)
+        self.tb.add_scalar('Accuracy/Train', accuracy, self.epoch.count)
 
         valid_loss = self.validLoss / len(self.valid_loader.sampler)
         valid_accuracy = self.validCorrect / len(self.valid_loader.sampler)
-        self.tb.add_scalar('Valid Loss', valid_loss, self.epoch.count)
-        self.tb.add_scalar('Valid Accuracy', valid_accuracy, self.epoch.count)
+        self.tb.add_scalar('Loss/Valid ', valid_loss, self.epoch.count)
+        self.tb.add_scalar('Accuracy/Valid', valid_accuracy, self.epoch.count)
 
         '''
         test_loss = self.testLoss / len(self.test_loader.dataset)
@@ -217,8 +233,10 @@ class RunManager():
             )
         return all_preds, all_labels
 
-    def calculate_confusion_matrix(self):
-        all_preds, all_labels = self.get_all_preds_labels(self.network, self.test_loader)
+    def calculate_confusion_matrix(self, loader=None):
+        loader = self.valid_loader if loader is None else loader
+
+        all_preds, all_labels = self.get_all_preds_labels(self.network, loader)
         #print(all_preds.shape, all_preds.shape)
         cm = confusion_matrix(all_labels.cpu().numpy(), all_preds.cpu().numpy())
         print(cm)
