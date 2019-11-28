@@ -29,16 +29,20 @@ import os
 
 
 class ModelSummary():
-    def __init__(self, valid_accuracy, run_params, network_rpr):
+    def __init__(self, valid_accuracy=0.0, test_accuracy=0.0, run_params=None, network_rpr=None):
         self.valid_accuracy = valid_accuracy
+        self.test_accuracy = test_accuracy
         self.run_params = run_params
         self.network_rpr = network_rpr
 
     def __lt__(self, other):
-        return self.valid_accuracy < other.valid_accuracy
+        return (self.valid_accuracy, self.test_accuracy) < (other.valid_accuracy, other.test_accuracy)
 
     def __str__(self):
-        return 'Valid_accuracy:%f \nRun_params:\n %s \nNetwork_rpr:\n%s' % ( self.valid_accuracy, self.run_params, self.network_rpr)
+        return 'Valid_accuracy:%f Test_accuracy:%f \nRun_params:\n %s \nNetwork_rpr:\n%s' % ( self.valid_accuracy, self.test_accuracy, self.run_params, self.network_rpr)
+
+    def __repr__(self):
+        return 'Valid_accuracy:%f Test_accuracy:%f \nRun_params:\n %s \nNetwork_rpr:\n%s' % ( self.valid_accuracy, self.test_accuracy, self.run_params, self.network_rpr)
 
 class Epoch():
     def __init__(self):
@@ -96,7 +100,8 @@ class RunManager():
         #self.tb = SummaryWriter(log_dir=os.path.join(self.base_folder, 'runs'), comment=f'-{run}', filename_suffix=f'-{run}')
         self.tb = SummaryWriter(comment=f'-{run}')
 
-        images, labels = next(iter(self.valid_loader))
+        images, labels = next(iter(self.train_loader))
+        images, labels = images[:100], labels[:100]
         images, labels = images.to(self.device), labels.to(self.device)
         grid = torchvision.utils.make_grid(images)
 
@@ -112,11 +117,14 @@ class RunManager():
 
         grid = torchvision.utils.make_grid(image, normalize=True, scale_each=True)
         self.tb.add_image('confusion_matrix', grid)
-        if self.valid_loader != None:
-            #self.best_models.append((self.validCorrect / len(self.valid_loader.sampler), (self.run_params, str(self.network))))
-            self.best_models.append(ModelSummary(self.validCorrect / len(self.valid_loader.sampler), self.run_params, str(self.network)))
-        else:
-            self.best_models.append(ModelSummary(float('nan'), self.run_params, str(self.network)))
+        valid_accuracy = 0.0
+        if self.valid_loader is not None:
+            valid_accuracy=self.validCorrect / len(self.valid_loader.sampler)
+        test_accuracy = 0.0
+        if self.test_loader is not None:
+            test_accuracy=self.testCorrect / len(self.test_loader.sampler)
+        self.best_models.append(ModelSummary(valid_accuracy=valid_accuracy, test_accuracy=test_accuracy,
+                                             run_params=self.run_params, network_rpr=str(self.network)))
 
         self.tb.close()
         self.epoch.count = 0
@@ -137,40 +145,42 @@ class RunManager():
         run_duration = time.time() - self.run_start_time
         self.run_duration = run_duration
 
-        loss = self.epoch.loss / len(self.train_loader.sampler)
-        accuracy = self.epoch.num_correct / len(self.train_loader.sampler)
-        self.tb.add_scalar('Loss/Train', loss, self.epoch.count)
-        self.tb.add_scalar('Accuracy/Train', accuracy, self.epoch.count)
-
-        valid_loss = self.validLoss / len(self.valid_loader.sampler)
-        valid_accuracy = self.validCorrect / len(self.valid_loader.sampler)
-        self.tb.add_scalar('Loss/Valid ', valid_loss, self.epoch.count)
-        self.tb.add_scalar('Accuracy/Valid', valid_accuracy, self.epoch.count)
-
-        '''
-        test_loss = self.testLoss / len(self.test_loader.dataset)
-        test_accuracy = self.testCorrect / len(self.test_loader.dataset)
-
-        self.tb.add_scalar('Test Loss', test_loss, self.epoch.count)
-        self.tb.add_scalar('Test Accuracy', test_accuracy, self.epoch.count)
-        '''
-
-        for name, param in self.network.named_parameters():
-            self.tb.add_histogram(name, param, self.epoch.count)
-        self.tb.add_histogram(f'{name}.grad', param.grad, self.epoch.count)
-
         results = OrderedDict()
         results["run"] = self.run_count
         results["epoch"] = self.epoch.count
         results["network"] = self.network.name
-        results["loss"] = loss
-        results["accuracy"] = accuracy
-        results["valid loss"] = valid_loss
-        results["valid accuracy"] = valid_accuracy
-        #results["test loss"] = test_loss
-        #results["test accuracy"] = test_accuracy
+
         results["epoch duration"] = epoch_duration
         results["run duration"] = run_duration
+
+        if self.train_loader is not None:
+            loss = self.epoch.loss / len(self.train_loader.sampler)
+            accuracy = self.epoch.num_correct / len(self.train_loader.sampler)
+            self.tb.add_scalar('Loss/Train', loss, self.epoch.count)
+            self.tb.add_scalar('Accuracy/Train', accuracy, self.epoch.count)
+            results["loss"] = loss
+            results["accuracy"] = accuracy
+
+        if self.valid_loader is not None:
+            valid_loss = self.validLoss / len(self.valid_loader.sampler)
+            valid_accuracy = self.validCorrect / len(self.valid_loader.sampler)
+            self.tb.add_scalar('Loss/Valid ', valid_loss, self.epoch.count)
+            self.tb.add_scalar('Accuracy/Valid', valid_accuracy, self.epoch.count)
+            results["valid loss"] = valid_loss
+            results["valid accuracy"] = valid_accuracy
+
+        if self.test_loader is not None:
+            test_loss = self.testLoss / len(self.test_loader.dataset)
+            test_accuracy = self.testCorrect / len(self.test_loader.dataset)
+            self.tb.add_scalar('Loss/Test', test_loss, self.epoch.count)
+            self.tb.add_scalar('Accuracy/Test', test_accuracy, self.epoch.count)
+            results["test loss"] = test_loss
+            results["test accuracy"] = test_accuracy
+
+
+        for name, param in self.network.named_parameters():
+            self.tb.add_histogram(name, param, self.epoch.count)
+        self.tb.add_histogram(f'{name}.grad', param.grad, self.epoch.count)
 
         for k, v in self.run_params._asdict().items(): results[k] = v
         self.run_data.append(results)
@@ -178,7 +188,7 @@ class RunManager():
         df = pd.DataFrame.from_dict(self.run_data, orient='columns')
 
         clear_output(wait=True)
-        display(df.tail(10))
+        display(df.tail(5))
 
     def _calculate_loss_per_loader(self, loss, data_loader):
         return loss.item() * data_loader.batch_size

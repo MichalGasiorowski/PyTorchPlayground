@@ -70,7 +70,7 @@ def get_train_valid_test_loader(train_set, valid_set, test_set, batch_size, rand
 	num_train = len(train_set)
 	indices = list(range(num_train))
 	split = 0
-	if valid_split >= 0.0:
+	if valid_split > 0.0:
 		split = int(np.floor(valid_split * num_train))
 
 	if shuffle:
@@ -80,7 +80,7 @@ def get_train_valid_test_loader(train_set, valid_set, test_set, batch_size, rand
 	train_idx, valid_idx = indices[split:], indices[:split]
 	train_sampler = torch.utils.data.SubsetRandomSampler(train_idx)
 	valid_sampler = torch.utils.data.SubsetRandomSampler(valid_idx)
-
+	# torch.utils.data.SequentialSampler
 	train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, sampler=train_sampler,
 											   num_workers=num_workers, pin_memory=pin_memory)
 	valid_loader = torch.utils.data.DataLoader(valid_set, batch_size=batch_size, sampler=valid_sampler,
@@ -92,9 +92,9 @@ def get_train_valid_test_loader(train_set, valid_set, test_set, batch_size, rand
 
 def get_train_valid_test_loader_for_final_training(train_set, valid_set, test_set, batch_size, random_seed,
 								shuffle=False, num_workers=4, pin_memory=False):
-	train_loader, valid_loader, test_loader = get_train_valid_test_loader(train_set, valid_set, test_set,
-																		  batch_size, random_seed, 0.0,
-																		  shuffle, num_workers, pin_memory)
+	train_loader, valid_loader, test_loader = get_train_valid_test_loader(train_set=train_set, valid_set=valid_set, test_set=test_set,
+																		  batch_size=batch_size, random_seed=random_seed, valid_split=0.0,
+																		  shuffle=shuffle, num_workers=num_workers, pin_memory=pin_memory)
 
 	return (train_loader, valid_loader, test_loader)
 
@@ -210,14 +210,13 @@ def main():
 
 			optimizer = optim.Adam(network.parameters(), lr=run.lr)
 
-			runManager_train(m, run, network, optimizer, train_loader, valid_loader, test_loader, valid_split, train_set.classes)
+			runManager_train(runManager=m, run=run, network=network, optimizer=optimizer,
+							 train_loader=train_loader, valid_loader=valid_loader, test_loader=None,
+							 valid_split=valid_split, names=train_set.classes)
 
 			best_models = sorted(m.best_models, reverse=True)
 
-			best_models_str = "\n".join(str(model) for model in best_models[:10])
-				#["Valid_accuracy:" + str(item[0]) + "\nHyperParameters:\n" + "run:\n" + str(item[1][0]) + "\nNetwork:\n" +
-				 #str(item[1][1]) for item in best_models[:10]])
-			#print(best_models_str)
+			best_models_str = "\n".join(str(model) for model in best_models[:5])
 
 			runs_data[networkName] = best_models
 			m.save(f'results_{networkName}')
@@ -228,7 +227,9 @@ def main():
 
 def runManager_final_train(runManager, run, network, optimizer, train_loader, test_loader, names):
 
-	runManager.begin_run(run, network, run.device, train_loader, test_loader, 0, names=names)
+	runManager.begin_run(run=run, network=network, device=run.device,
+						 train_loader=train_loader, valid_loader=None, test_loader=test_loader,
+						 valid_split = 0.0, names=names)
 	for epoch in range(run.epochs):
 		runManager.begin_epoch()
 		for batch in train_loader:
@@ -293,7 +294,8 @@ def construct_network(run, use_batch_norm=True):
 if __name__ == '__main__':
 
 	runs_data = main()
-	print("runs_data:\n", runs_data)
+	#[(key, str(value[0])) for key, value in runs_data.items()]
+	print("runs_data:\n", [(key, best_models) for key, best_models in runs_data.items()])
 
 	best_vgg = runs_data['VggLikeNet'][0]
 
@@ -310,8 +312,12 @@ if __name__ == '__main__':
 	optimizer = optim.Adam(best_vgg.parameters(), lr=best_run_params.lr)
 	runManager = RunManager()
 
-	runManager_final_train(runManager, best_run_params, best_vgg, optimizer, train_loader, test_loader, train_set.classes)
+	runManager_final_train(runManager=runManager, run=best_run_params, network=best_vgg, optimizer=optimizer,
+						   train_loader=train_loader, test_loader=test_loader, names=train_set.classes)
 
 	best_models = sorted(runManager.best_models, reverse=True)
 
-	best_models_str = "\n".join(best_models[:10])
+	best_models_str = "\n".join(str(model) for model in best_models[:5])
+
+	print("After final training:")
+	print(best_models_str)
