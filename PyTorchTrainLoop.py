@@ -131,8 +131,7 @@ def main():
 		network=['LeNet']
 		, lr=[.005, .01]
 		, batch_size=[1000]
-		, shuffle=[True]
-		, epochs=[2]
+		, epochs=[10]
 		, device=[device]
 		, nw=[2]
 		, conv_out=[[16, 32], [24, 48], [32, 64]]
@@ -148,13 +147,12 @@ def main():
 		network=['BiggerLeNet']
 		, lr=[.001, .005, .01]
 		, batch_size=[1000]
-		, shuffle=[True]
-		, epochs=[2]
+		, epochs=[10]
 		, device=[device]
 		, nw=[2]
 		, conv_out=[[16, 32, 64], [32, 64, 128], [48, 96, 192]]
 		, conv_ks=[[3, 3, 3]]
-		, dropout=[0.2, 0.5]
+		, dropout=[0.0, 0.2, 0.5]
 		, lin_out=[[200, 84], [512], [200]]
 		, in_size=[(28, 28)]
 		, out_size=[10]
@@ -165,13 +163,12 @@ def main():
 		network=['VggLikeNet']
 		, lr=[.001, .005, .01]
 		, batch_size=[1000]
-		, shuffle=[True]
-		, epochs=[2]
+		, epochs=[10]
 		, device=[device]
 		, nw=[2]
-		, conv_out=[[[16, 16], [32, 32]], [[24, 24], [48, 48]]]
+		, conv_out=[[[16, 16], [32, 32]], [[24, 24], [48, 48]], [[32, 32], [64, 64]]]
 		, conv_ks=[[[3, 3], [3, 3]]]
-		, dropout=[0.2, 0.5]
+		, dropout=[0.0, 0.2, 0.5]
 		, lin_out=[[200, 84], [512], [200]]
 		, in_size=[(28, 28)]
 		, out_size=[10]
@@ -185,13 +182,7 @@ def main():
 	for networkName, parameters in experiments.__reversed__():
 		m = RunManager()
 		use_batch_norm = True
-		i = 0
 		for run in RunBuilder.get_runs(parameters):
-
-			#print(len(RunBuilder.get_runs(parametersLeNet)))
-			if i > 0:
-				break
-			i += 1
 
 			print("Run starting:", run)
 
@@ -201,7 +192,7 @@ def main():
 
 			train_loader, valid_loader, test_loader = get_train_valid_test_loader(train_set, valid_set, test_set,
 														run.batch_size, random_seed, valid_split,
-														run.shuffle, run.nw, pin_memory)
+														True, run.nw, pin_memory)
 
 			network = construct_network(run, use_batch_norm)
 
@@ -229,7 +220,7 @@ def runManager_final_train(runManager, run, network, optimizer, train_loader, te
 
 	runManager.begin_run(run=run, network=network, device=run.device,
 						 train_loader=train_loader, valid_loader=None, test_loader=test_loader,
-						 valid_split = 0.0, names=names)
+						 valid_split = 0.0, names=names, final_train = True)
 	for epoch in range(run.epochs):
 		runManager.begin_epoch()
 		for batch in train_loader:
@@ -296,28 +287,29 @@ if __name__ == '__main__':
 	runs_data = main()
 	#[(key, str(value[0])) for key, value in runs_data.items()]
 	print("runs_data:\n", [(key, best_models) for key, best_models in runs_data.items()])
-
-	best_vgg = runs_data['VggLikeNet'][0]
-
 	train_set, valid_set, test_set = create_datasets()
 	random_seed = random.seed()
 
-	best_run_params = best_vgg.run_params
-	pin_memory = (best_run_params.device != 'cpu')
+	for key, value in runs_data.items():
+		#best_vgg = runs_data['VggLikeNet'][0]
+		best_model = value[0]
 
-	train_loader, valid_loader, test_loader = get_train_valid_test_loader_for_final_training(
-		train_set, valid_set, test_set, best_run_params.batch_size, random_seed, best_run_params.shuffle, best_run_params.nw, pin_memory)
+		best_run_params = best_model.run_params
+		pin_memory = (best_run_params.device != 'cpu')
 
-	best_vgg = construct_network(best_run_params)
-	optimizer = optim.Adam(best_vgg.parameters(), lr=best_run_params.lr)
-	runManager = RunManager()
+		train_loader, valid_loader, test_loader = get_train_valid_test_loader_for_final_training(
+			train_set, valid_set, test_set, best_run_params.batch_size, random_seed, True, best_run_params.nw, pin_memory)
 
-	runManager_final_train(runManager=runManager, run=best_run_params, network=best_vgg, optimizer=optimizer,
-						   train_loader=train_loader, test_loader=test_loader, names=train_set.classes)
+		best_network = construct_network(best_run_params)
+		optimizer = optim.Adam(best_network.parameters(), lr=best_run_params.lr)
+		runManager = RunManager()
 
-	best_models = sorted(runManager.best_models, reverse=True)
+		runManager_final_train(runManager=runManager, run=best_run_params, network=best_network, optimizer=optimizer,
+							   train_loader=train_loader, test_loader=test_loader, names=train_set.classes)
 
-	best_models_str = "\n".join(str(model) for model in best_models[:5])
+		best_final_models = sorted(runManager.best_models, reverse=True)
+		print("After final training:\n", best_final_models[0].run_params.network, "\n")
 
-	print("After final training:")
-	print(best_models_str)
+		best_models_str = str(best_final_models[0])
+
+		print(best_models_str)

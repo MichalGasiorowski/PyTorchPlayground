@@ -81,9 +81,10 @@ class RunManager():
         self.best_test_accuracy = 0
         self.best_models = []
 
-    def begin_run(self, run, network, device, train_loader, valid_loader=None, test_loader=None, valid_split = 0.1, names=None ):
+    def begin_run(self, run, network, device, train_loader, valid_loader=None, test_loader=None, valid_split = 0.1, names=None, final_train=False ):
         self.run_start_time = time.time()
 
+        self.final_train=final_train
         self.run_params = run
         self.run_count += 1
         self.testLoss = 0
@@ -98,7 +99,8 @@ class RunManager():
         self.valid_loader = valid_loader
         self.test_loader = test_loader
         #self.tb = SummaryWriter(log_dir=os.path.join(self.base_folder, 'runs'), comment=f'-{run}', filename_suffix=f'-{run}')
-        self.tb = SummaryWriter(comment=f'-{run}')
+        final_train_prefix = '' if self.final_train else '[FT]'
+        self.tb = SummaryWriter(comment=f'-{final_train_prefix}-{run}')
 
         images, labels = next(iter(self.train_loader))
         images, labels = images[:100], labels[:100]
