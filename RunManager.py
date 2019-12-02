@@ -103,7 +103,7 @@ class RunManager():
         self.tb = SummaryWriter(comment=f'-{final_train_prefix}-{run}')
 
         images, labels = next(iter(self.train_loader))
-        images, labels = images[:100], labels[:100]
+        #images, labels = images[:100], labels[:100]
         images, labels = images.to(self.device), labels.to(self.device)
         grid = torchvision.utils.make_grid(images)
 

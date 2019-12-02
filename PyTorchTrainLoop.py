@@ -165,7 +165,7 @@ def main():
 		, batch_size=[1000]
 		, epochs=[10]
 		, device=[device]
-		, nw=[2]
+		, nw=[10]
 		, conv_out=[[[16, 16], [32, 32]], [[24, 24], [48, 48]], [[32, 32], [64, 64]]]
 		, conv_ks=[[[3, 3], [3, 3]]]
 		, dropout=[0.0, 0.2, 0.5]
@@ -180,6 +180,10 @@ def main():
 	experiments = [('LeNet', parametersLeNet), ('BiggerLeNet', parametersBiggerLeNet), ('VggLikeNet', parametersVggLikeNet)]
 
 	for networkName, parameters in experiments.__reversed__():
+		#i = 0
+		#if i > 0:
+		#	break
+		#i += 1
 		m = RunManager()
 		use_batch_norm = True
 		for run in RunBuilder.get_runs(parameters):

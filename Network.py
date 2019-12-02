@@ -220,7 +220,7 @@ def construct_vgg_conv_layers(conv_input_channels, conv_out, conv_ks, dropout, i
 
 		for sub_i in range(group_num):
 			convSequenceArray.append(("conv_" + str(i) + "_" + str(sub_i),
-									  nn.Conv2d(in_channels=conv_input_channel[sub_i], out_channels=conv_out_channel[sub_i],
+									  nn.Conv2d(in_channels=conv_input_channel[sub_i], out_channels=conv_out_channel[sub_i], padding=1,
 												kernel_size=kernel_size[sub_i])))
 		if batch_normalization:
 			convSequenceArray.append(("batch_norm_" + str(i) + "_" + str(sub_i), nn.BatchNorm2d(num_features=conv_out_channel[sub_i])))
@@ -375,6 +375,7 @@ class VggLikeNet(nn.Module):
 			raise Exception('channels and kernel_sizes parameters must match!')
 		super(VggLikeNet, self).__init__()
 		self.name = 'VggLikeNet'
+		self.avgpool_size = (7, 7)
 
 		self.conv_out = conv_out
 
@@ -394,8 +395,11 @@ class VggLikeNet(nn.Module):
 
 		self.convSequence, after_conv_output_shape = construct_vgg_conv_layers(self.conv_input_channels, self.conv_out,
 		                                                                   self.conv_ks, self.dropout, self.in_size, self.use_batch_norm)
-		in_features_after_conv = np.prod(after_conv_output_shape) * conv_out[-1][-1]
+		#in_features_after_conv = np.prod(after_conv_output_shape) * conv_out[-1][-1]
+		in_features_after_conv = np.prod(self.avgpool_size) * conv_out[-1][-1]
 		self.linear_input_sizes = [in_features_after_conv] + lin_out[:-1]
+
+		self.avgpool = nn.AdaptiveAvgPool2d(self.avgpool_size)
 
 		self.linearSequence = construct_linear_layers(self.linear_input_sizes, self.lin_out, dropout)
 
@@ -409,7 +413,8 @@ class VggLikeNet(nn.Module):
 
 	def forward(self, t):
 		t = self.convSequence(t)
-		t = t.view(t.size(0), -1)
+		t = self.avgpool(t)
+		t = torch.flatten(t, 1)
 		t = self.linearSequence(t)
 		# (6) output layer
 		t = self.out(t)
