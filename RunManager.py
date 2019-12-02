@@ -99,7 +99,7 @@ class RunManager():
         self.valid_loader = valid_loader
         self.test_loader = test_loader
         #self.tb = SummaryWriter(log_dir=os.path.join(self.base_folder, 'runs'), comment=f'-{run}', filename_suffix=f'-{run}')
-        final_train_prefix = '' if self.final_train else '[FT]'
+        final_train_prefix = '[FT]' if self.final_train else ''
         self.tb = SummaryWriter(comment=f'-{final_train_prefix}-{run}')
 
         images, labels = next(iter(self.train_loader))
