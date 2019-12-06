@@ -36,3 +36,5 @@ dist/
 results_*
 best_models*
 /RL/.ipynb_checkpoints/
+/RL/__pycache__/
+/old_scripts/

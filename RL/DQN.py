@@ -1,4 +1,4 @@
-%matplotlib inline
+
 import gym
 import math
 import random
