@@ -22,7 +22,7 @@ class CartPoleEnvManager():
 		return self.env.render(mode)
 
 	def num_actions_available(self):
-		return not self.env.action_space.n
+		return self.env.action_space.n
 
 	def take_action(self, action):
 		_, reward, self.done, _ = self.env.step(action.item())
@@ -78,8 +78,3 @@ class CartPoleEnvManager():
 		])
 
 		return resize(screen).unsqueeze(0).to(self.device)
-
-
-
-
-
