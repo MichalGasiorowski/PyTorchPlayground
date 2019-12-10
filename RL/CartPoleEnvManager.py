@@ -4,10 +4,12 @@ import numpy as np
 import torchvision.transforms as T
 
 class CartPoleEnvManager():
-	def __init__(self, device):
+	def __init__(self, device, env_wrapper=lambda x: x, timestep_limit = 1000):
 		self.device = device
-		self.env = gym.make('CartPole-v0').unwrapped
-		self.env.reset()
+		env = gym.make('CartPole-v0').unwrapped
+		env.spec.timestep_limit = timestep_limit
+		self.env = env_wrapper(env)
+		#self.env.reset()
 		self.current_screen = None
 		self.done = False
 
