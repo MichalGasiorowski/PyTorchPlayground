@@ -2,16 +2,19 @@ import gym
 import torch
 import numpy as np
 import torchvision.transforms as T
+import matplotlib.pyplot as plt
+from IPython import display as ipythondisplay
 
 class CartPoleEnvManager():
-	def __init__(self, device, env_wrapper=lambda x: x, timestep_limit = 1000):
+	def __init__(self, device, env_wrapper=lambda x: x, timestep_limit = 1000, xvfb_mode=False):
 		self.device = device
 		env = gym.make('CartPole-v0').unwrapped
 		env.spec.timestep_limit = timestep_limit
 		self.env = env_wrapper(env)
-		#self.env.reset()
+		self.env.reset()
 		self.current_screen = None
 		self.done = False
+		self.xvfb_mode = xvfb_mode
 
 	def reset(self):
 		self.env.reset()
@@ -21,7 +24,12 @@ class CartPoleEnvManager():
 		self.env.close()
 
 	def render(self, mode='human'):
-		return self.env.render(mode)
+		screen = self.env.render(mode)
+		if self.xvfb_mode:
+			plt.imshow(screen)
+			ipythondisplay.clear_output(wait=True)
+			ipythondisplay.display(plt.gcf())
+		return screen
 
 	def num_actions_available(self):
 		return self.env.action_space.n

@@ -6,9 +6,6 @@ from . Experience import Experience
 
 import IPython.display as display
 
-
-
-
 def is_ipython():
     return 'inline' in matplotlib.get_backend()
 
