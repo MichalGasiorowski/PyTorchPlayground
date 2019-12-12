@@ -6,11 +6,13 @@ import matplotlib.pyplot as plt
 from IPython import display as ipythondisplay
 
 class CartPoleEnvManager():
-	def __init__(self, device, env_wrapper=lambda x: x, timestep_limit = 1000, xvfb_mode=False):
+	def __init__(self, device, env_wrapper=lambda x: x, timestep_limit = 100, xvfb_mode=False):
 		self.device = device
-		env = gym.make('CartPole-v0').unwrapped
+		#env = gym.make('CartPole-v0').unwrapped
+		env = gym.make('CartPole-v0')
 		env.spec.timestep_limit = timestep_limit
 		self.env = env_wrapper(env)
+		#self.env = env
 		self.env.reset()
 		self.current_screen = None
 		self.done = False
@@ -25,16 +27,13 @@ class CartPoleEnvManager():
 
 	def render(self, mode='human'):
 		screen = self.env.render(mode)
-		if self.xvfb_mode:
-			plt.imshow(screen)
-			ipythondisplay.clear_output(wait=True)
-			ipythondisplay.display(plt.gcf())
 		return screen
 
 	def num_actions_available(self):
 		return self.env.action_space.n
 
 	def take_action(self, action):
+		#print('in take_action; done=', self.env.env.done)
 		_, reward, self.done, _ = self.env.step(action.item())
 		return torch.tensor([reward], device=self.device) # step() expects normal number, not torch tensor!
 
@@ -62,17 +61,23 @@ class CartPoleEnvManager():
 		return screen.shape[3]
 
 	def get_processed_screen(self):
-		screen = self.render('rgb_array').transpose((2, 0, 1)) # CHW is expected
-		screen = self.crop_screen(screen)
-		return self.transform_screen_data(screen)
+		screen = self.render('rgb_array')
+		screen = self.crop_screen(screen, hwc=True)
+		if self.xvfb_mode:
+			plt.imshow(screen)
+			#ipythondisplay.clear_output(wait=True)
+			ipythondisplay.display(plt.gcf())
+		return self.transform_screen_data(screen.transpose((2, 0, 1))) # CHW is expected HWC -> CHW
 
-	def crop_screen(self, screen):
-		screen_height = screen.shape[1]
-
+	def crop_screen(self, screen, hwc=True):
+		screen_height = screen.shape[0] if hwc else screen.shape[1]
+		screen_width = screen.shape[1] if hwc else screen.shape[0]
 		# Strip off top bottom
 		top = int(screen_height * 0.4)
 		bottom = int(screen_height * 0.8)
-		screen = screen[:, top:bottom, :]
+		left = int(screen_width * 0.2)
+		right = int(screen_width * 0.8)
+		screen = screen[top:bottom, left:right, :] if hwc else screen[left:right, top:bottom, :]
 		return screen
 
 	def transform_screen_data(self, screen):
