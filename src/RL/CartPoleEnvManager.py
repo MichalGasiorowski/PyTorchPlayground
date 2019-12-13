@@ -8,11 +8,11 @@ from IPython import display as ipythondisplay
 class CartPoleEnvManager():
 	def __init__(self, device, env_wrapper=lambda x: x, timestep_limit = 100, xvfb_mode=False):
 		self.device = device
-		#env = gym.make('CartPole-v0').unwrapped
-		env = gym.make('CartPole-v0')
+		env = gym.make('CartPole-v0').unwrapped
+		#env = gym.make('CartPole-v0')
 		env.spec.timestep_limit = timestep_limit
-		self.env = env_wrapper(env)
-		#self.env = env
+		#self.env = env_wrapper(env)
+		self.env = env
 		self.env.reset()
 		self.current_screen = None
 		self.done = False
@@ -63,10 +63,10 @@ class CartPoleEnvManager():
 	def get_processed_screen(self):
 		screen = self.render('rgb_array')
 		screen = self.crop_screen(screen, hwc=True)
-		if self.xvfb_mode:
-			plt.imshow(screen)
+		#if self.xvfb_mode:
+		#	plt.imshow(screen)
 			#ipythondisplay.clear_output(wait=True)
-			ipythondisplay.display(plt.gcf())
+		#	ipythondisplay.display(plt.gcf())
 		return self.transform_screen_data(screen.transpose((2, 0, 1))) # CHW is expected HWC -> CHW
 
 	def crop_screen(self, screen, hwc=True):

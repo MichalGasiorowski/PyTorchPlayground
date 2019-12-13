@@ -4,12 +4,13 @@ import torch
 
 from . Experience import Experience
 
-import IPython.display as display
+#import IPython.display as display
+from IPython import display
 
-def is_ipython():
-    return 'inline' in matplotlib.get_backend()
+#def is_ipython():
+#    return 'inline' in matplotlib.get_backend()
 
-def plot(values, moving_avg_period):
+def plot(values, moving_avg_period, is_ipython):
     plt.figure(2)
     plt.clf()
     plt.title('Training')
@@ -21,7 +22,7 @@ def plot(values, moving_avg_period):
     plt.plot(moving_avg)
     plt.pause(0.001)
     print("Episode", len(values), "\n", moving_avg_period, "episode moving avg:", moving_avg[-1])
-    if is_ipython(): display.clear_output(wait=True)
+    if is_ipython: display.clear_output(wait=True)
 
 def get_moving_average(period, values):
     values = torch.tensor(values, dtype=torch.float)
